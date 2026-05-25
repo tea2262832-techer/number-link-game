@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NLG (Number Link Game) - RETRO EDITION</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* レトロなフォントスタイルとソリッド影 */
+        .retro-shadow {
+            box-shadow: 6px 6px 0px 0px rgba(0, 0, 0, 1);
+        }
+        .retro-shadow-sm {
+            box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 1);
+        }
+        .retro-shadow-active {
+            transform: translate(3px, 3px);
+            box-shadow: 3px 3px 0px 0px rgba(0, 0, 0, 1);
+        }
+        .retro-shadow-press:active {
+            transform: translate(6px, 6px);
+            box-shadow: 0px 0px 0px 0px rgba(0, 0, 0, 1);
+        }
+        
+        /* ドラッグ中の視覚効果 */
+        .dragging {
+            opacity: 0.6;
+            transform: scale(1.05) rotate(-3deg);
+            border: 4px dashed #eab308 !important;
+        }
+
+        /* カスタムスクロールバー（レトロ風） */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #eab308;
+            border: 2px solid #0f172a;
+        }
+
+        /* ピクセルチックなアニメーション（点滅） */
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .retro-blink {
+            animation: blink 1.5s infinite;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-mono select-none">
+
+    <!-- ヘッダー -->
+    <header class="bg-red-950 border-b-4 border-black py-4 px-6 flex justify-between items-center shadow-md">
+        <div class="flex items-center space-x-3">
+            <span class="text-3xl">🕸️</span>
+            <div>
+                <h1 class="text-3xl font-black tracking-wider text-yellow-400 [text-shadow:3px_3px_0px_#000]">
+                    NLG <span class="text-sm bg-black text-red-500 px-2 py-0.5 ml-2 border border-red-500">RETRO-100</span>
+                </h1>
+                <p class="text-xs text-yellow-500 font-bold">NUMBER LINK GAME - CO-OP PLAY</p>
+            </div>
+        </div>
+        
+        <!-- 操作メニュー ＆ ライフ -->
+        <div class="flex items-center space-x-4">
+            <button id="howToPlayBtn" class="bg-blue-700 hover:bg-blue-600 border-2 border-black text-white font-bold py-1.5 px-3 rounded text-xs retro-shadow-sm active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all">
+                📖 遊び方
+            </button>
+            <div id="lifeContainer" class="flex items-center bg-black px-4 py-1.5 border-2 border-slate-700 rounded">
+                <span class="text-xs font-bold text-yellow-500 mr-2">LIFE:</span>
+                <div id="hearts" class="flex space-x-1 text-base text-red-500">
+                    ❤️❤️❤️
+                </div>
+            </div>
+            <button id="resetGameBtn" class="bg-red-700 hover:bg-red-600 border-2 border-black text-white font-bold py-1.5 px-3 rounded text-xs retro-shadow-sm active:translate-y-0.5 active:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all">
+                リセット
+            </button>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ (横幅を最大級に広げる) -->
+    <main class="flex-1 w-[96vw] mx-auto p-4 md:py-6 flex flex-col gap-6">
+
+        <!-- 設定 & お題メモ画面 -->
+        <div id="setupSection" class="bg-slate-900 border-4 border-black rounded-none p-6 retro-shadow">
+            <h2 class="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2 border-b-2 border-black pb-2">
+                <span>⚙️</span> GAME SETUP & THEME
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- プレイヤー人数設定 -->
+                <div class="bg-slate-950 p-4 border-2 border-black">
+                    <label class="block text-xs font-bold text-slate-400 mb-2">▼ プレイヤー人数 (2〜8人)</label>
+                    <div class="flex items-center space-x-4">
+                        <button onclick="changePlayerCount(-1)" class="w-10 h-10 bg-slate-800 hover:bg-slate-700 border-2 border-black text-yellow-400 font-bold text-xl active:bg-slate-900">-</button>
+                        <span id="playerCountDisplay" class="w-12 text-center text-3xl font-black text-yellow-400">4</span>
+                        <button onclick="changePlayerCount(1)" class="w-10 h-10 bg-slate-800 hover:bg-slate-700 border-2 border-black text-yellow-400 font-bold text-xl active:bg-slate-900">+</button>
+                    </div>
+                </div>
+
+                <!-- プレイヤー名のカスタマイズ -->
+                <div class="bg-slate-950 p-4 border-2 border-black">
+                    <label class="block text-xs font-bold text-slate-400 mb-2">▼ プレイヤー名</label>
+                    <div id="playerNamesInputs" class="space-y-2 max-h-40 overflow-y-auto pr-2">
+                        <!-- 動的に追加 -->
+                    </div>
+                </div>
+
+                <!-- お題メモ -->
+                <div class="bg-slate-950 p-4 border-2 border-black flex flex-col justify-between">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 mb-1">▼ 今回のお題メモ</label>
+                        <span class="text-[10px] text-slate-500 block mb-2">（例：こわいもの、食べ物の人気、欲しい超能力）</span>
+                        <input type="text" id="themeInput" placeholder="お題をここに書いておこう..." class="w-full bg-slate-900 border-2 border-slate-700 rounded-none px-3 py-1.5 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-yellow-500 text-sm">
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 pt-4 border-t-2 border-black flex justify-end">
+                <button id="startGameBtn" class="bg-yellow-500 hover:bg-yellow-400 active:translate-y-1 active:shadow-none text-black font-black py-3 px-8 border-4 border-black text-lg retro-shadow transition-all">
+                    カードを配って確認へ進む！ 🃏
+                </button>
+            </div>
+        </div>
+
+        <!-- 人狼方式：手札確認セクション (個別確認) -->
+        <div id="revealSection" class="hidden bg-slate-900 border-4 border-black p-8 retro-shadow max-w-4xl mx-auto w-full">
+            <div class="border-b-4 border-black pb-4 mb-6 text-center">
+                <span class="text-xs text-red-500 bg-black border border-red-500 px-3 py-1 font-bold tracking-widest retro-blink">SECRET CHECK PROCESS</span>
+                <h2 class="text-2xl font-black text-yellow-400 mt-2">🕵️ 順番にカードを確認してください</h2>
+            </div>
+
+            <!-- 確認待機画面 (画面を隠す状態) -->
+            <div id="revealWaitingScreen" class="bg-black border-4 border-red-950 p-8 text-center space-y-6">
+                <div class="text-yellow-500 text-6xl py-4">🤫</div>
+                <div class="space-y-2">
+                    <p id="targetPlayerNameNotice" class="text-2xl font-black text-white">〇〇さん、数字の確認をお願いします。</p>
+                    <p class="text-xs text-red-400 font-bold">※他のプレイヤーは、画面を見ないように後ろを向くか目を閉じてください！※</p>
+                </div>
+                <div>
+                    <button id="openSecretBtn" class="bg-blue-700 hover:bg-blue-600 border-4 border-black text-white font-black py-3 px-8 text-lg retro-shadow-sm active:translate-y-0.5 transition-all">
+                        確認画面を開く 🔑
+                    </button>
+                </div>
+            </div>
+
+            <!-- 秘密データ開示画面（確認プロセスでは純粋に数字確認に集中） -->
+            <div id="revealActiveScreen" class="hidden bg-black border-4 border-yellow-600 p-8 text-center space-y-6">
+                <p id="activePlayerHeader" class="text-xs text-yellow-500 font-bold border-b border-slate-800 pb-2">▼ あなたのひみつの数字</p>
+                
+                <!-- 巨大な数字 -->
+                <div class="inline-block bg-slate-900 border-4 border-yellow-500 p-8 retro-shadow-sm min-w-[160px]">
+                    <span id="secretNumberDisplay" class="text-7xl font-black text-yellow-400 [text-shadow:3px_3px_0px_#000]">99</span>
+                </div>
+
+                <div class="max-w-md mx-auto">
+                    <p class="text-xs text-slate-400 font-bold">あなたの数字を記憶しましたか?</p>
+                    <p class="text-[10px] text-slate-500 mt-1">※お題の表現（言葉）は、全員の確認が終わった後の「相談フェーズ」で入力します。</p>
+                </div>
+
+                <div class="pt-4">
+                    <button id="nextPlayerBtn" class="bg-green-700 hover:bg-green-600 border-4 border-black text-white font-black py-3 px-8 text-sm retro-shadow-sm active:translate-y-0.5 transition-all">
+                        数字を確認した ➡️
+                    </button>
+                </div>
+            </div>
+
+            <!-- 全員の確認が終わったときのスタート画面 -->
+            <div id="revealCompleteScreen" class="hidden bg-black border-4 border-green-500 p-8 text-center space-y-6">
+                <div class="text-green-400 text-6xl py-2">🎮</div>
+                <div class="space-y-2">
+                    <p class="text-2xl font-black text-green-400">全員のカード確認が完了しました！</p>
+                    <p class="text-xs text-slate-400">全員前を向いてプレイを始めてください！</p>
+                </div>
+                <div class="pt-4">
+                    <button id="startPlayPhaseBtn" class="bg-yellow-500 hover:bg-yellow-400 border-4 border-black text-black font-black py-4 px-10 text-xl retro-shadow active:translate-y-1 transition-all">
+                        ゲームスタート（相談フェーズ） 🚀
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- プレイエリア (全員確認後に表示される) -->
+        <div id="playArea" class="hidden flex-1 flex flex-col gap-6">
+            
+            <!-- お題表示 -->
+            <div id="themeDisplay" class="bg-slate-900 border-4 border-black rounded-none p-3 text-center retro-shadow-sm">
+                <span class="text-yellow-500 font-bold">🎯 今回のお題：</span>
+                <span id="currentThemeText" class="text-slate-100 font-black text-lg">未設定</span>
+            </div>
+
+            <!-- 各自の手元（この画面からはのぞき見機能を削除） -->
+            <div class="bg-slate-900 border-4 border-black rounded-none p-6 retro-shadow">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 border-b-2 border-black pb-2">
+                    <h2 class="text-lg font-bold text-yellow-400 flex items-center gap-2">
+                        <span>🤫</span> プレイヤーの手札（タイピング用）
+                    </h2>
+                    <div class="flex flex-wrap gap-2 items-center">
+                        <span class="text-[10px] text-yellow-500 bg-black px-2 py-1 border border-slate-800">※数字を再確認する場合は右のボタンを使用してください。</span>
+                        <!-- GM用再確認ボタン -->
+                        <button id="gmReconfirmBtn" class="bg-purple-900 hover:bg-purple-800 border-2 border-black text-white text-[11px] font-bold py-1 px-3 shadow-sm active:translate-y-0.5 active:shadow-none transition-all">
+                            ⚠️ 数字を忘れた (GM用)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 手元グリッド -->
+                <div id="handsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    <!-- 動的に手札カードが生成されます -->
+                </div>
+            </div>
+
+            <!-- 場（フィールド）エリア -->
+            <div class="bg-slate-900 border-4 border-black rounded-none p-6 retro-shadow flex-1 flex flex-col">
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4 border-b-2 border-black pb-2">
+                    <div>
+                        <h2 class="text-lg font-bold text-yellow-400 flex items-center gap-2">
+                            <span>🛒</span> みんなが出したカード（場）
+                        </h2>
+                        <p class="text-xs text-slate-400">カードをドラッグ、または矢印ボタンで、<strong>「左が小さく、右が大きい」</strong>順に並び替えよう！</p>
+                    </div>
+                    <!-- 判定用ボタン -->
+                    <div class="flex gap-2 w-full lg:w-auto">
+                        <button id="checkResultBtn" class="w-full lg:w-auto bg-green-700 hover:bg-green-600 active:translate-y-1 active:shadow-none text-white font-black px-8 py-3 border-4 border-black text-base retro-shadow-sm transition-all">
+                            結果発表！📣
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 並び替えフィールド (極限まで広く) -->
+                <div id="fieldZone" class="flex-1 min-h-[220px] bg-slate-950 border-4 border-dashed border-slate-800 p-6 flex items-center justify-center gap-6 flex-wrap overflow-y-auto">
+                    <!-- 場にカードが並びます -->
+                    <div id="fieldEmptyMessage" class="text-slate-600 text-center py-8">
+                        <span class="text-5xl block mb-2 font-serif">📥</span>
+                        上のエリアから「場に出す」を押すと、ここにカードが集まります。
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- GM用再確認プレイヤー選択モーダル -->
+    <div id="gmReconfirmModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-slate-900 border-4 border-purple-600 max-w-md w-full p-6 retro-shadow">
+            <h3 class="text-xl font-black text-yellow-400 border-b-2 border-black pb-2 mb-4 flex items-center gap-2">
+                <span>👾</span> 数字の再確認 (GM専用メニュー)
+            </h3>
+            <p class="text-[11px] text-slate-400 mb-4 leading-normal">
+                数字を忘れたプレイヤーを選択してください。<br>
+                ゲームマスター（GM）にも数字が見えないよう、対象者の名前を呼ぶ「目隠し画面」を一度挟みます。
+            </p>
+            <div id="reconfirmPlayerList" class="space-y-2 mb-6 max-h-60 overflow-y-auto">
+                <!-- プレイヤー一覧が動的に入ります -->
+            </div>
+            <div class="flex justify-end border-t border-slate-800 pt-4">
+                <button onclick="closeGmReconfirmModal()" class="bg-slate-800 hover:bg-slate-700 border-2 border-black text-slate-300 font-bold py-1.5 px-4 text-xs transition-all">
+                    キャンセル
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 遊び方説明モーダル -->
+    <div id="howToModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-slate-900 border-4 border-yellow-500 max-w-2xl w-full p-6 retro-shadow max-h-[85vh] overflow-y-auto">
+            <h3 class="text-2xl font-black text-yellow-400 border-b-4 border-black pb-2 mb-4 flex items-center gap-2">
+                <span>📖</span> NLG (Number Link Game) のあそびかた
+            </h3>
+            
+            <div class="space-y-4 text-xs leading-relaxed text-slate-200">
+                <div class="bg-black p-3 border border-slate-700">
+                    <p class="font-bold text-yellow-500 mb-1">■ ゲームの目的</p>
+                    <p>プレイヤー全員で協力し、各自に配られた「ひみつの数字」を、お題に沿った言葉の表現だけで伝え合い、<strong class="text-yellow-400">「小さい順」</strong>に正しく場に並べることを目指します。</p>
+                </div>
+
+                <div class="bg-black p-3 border border-slate-700">
+                    <p class="font-bold text-yellow-500 mb-1">■ 基本ルール</p>
+                    <ul class="list-disc list-inside space-y-1">
+                        <li>このゲームでは、カードの範囲は <strong class="text-yellow-400">1 〜 100</strong> です。</li>
+                        <li>自分の数字を直接口にしてはいけません。（例：「私の数字は52です」はNG！）</li>
+                        <li>お題（例：美味しい食べ物）に沿って、1を最下位、100を最高位として例えてください。<br>
+                            （例：数字が「95」なら「高級和牛ステーキ！」、数字が「3」なら「普通の雑草…」など）
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="bg-black p-3 border border-slate-700">
+                    <p class="font-bold text-yellow-500 mb-1">■ あそびの流れ</p>
+                    <ol class="list-decimal list-inside space-y-2">
+                        <li>お題を決めてメモ欄に入力し、人数を設定してスタートします。</li>
+                        <li><strong>手札の個別確認（人狼方式）：</strong><br>
+                            画面指示に従い、1人ずつ順番に自分のカード数字（1〜100）を確認します。他人の数字を間違えて見る心配はありません。（※まず自分の数字をしっかり覚えましょう）
+                        </li>
+                        <li>全員が確認を終えて前を向いたら、「ゲームスタート」を押します。</li>
+                        <li><strong>相談フェーズ：</strong><br>
+                            <strong>※相談画面では、誤認防止のためカードをタップしても数字は見えなくなります。</strong>もし忘れてしまった場合はGMに頼んで「⚠️数字を忘れた(GM用)」ボタンから、個人再確認フローを呼んでもらいましょう。<br>
+                            みんなと相談し、アピールする言葉が決まったら、手元カードの入力欄に<strong class="text-yellow-400">宣言をタイピング入力</strong>して「場に出す」ボタンを押します。
+                        </li>
+                        <li>全員のカードが場に揃ったら、全員で相談しながら、ドラッグ＆ドロップ（または矢印ボタン）でカードを<strong class="text-yellow-400">「左が小さく、右が大きい」</strong>順に並び替えます。</li>
+                        <li>並び終えたら「結果発表！」を押しましょう！</li>
+                    </ol>
+                </div>
+
+                <div class="bg-black p-3 border border-slate-700">
+                    <p class="font-bold text-yellow-500 mb-1">■ 結果発表ルール (重要)</p>
+                    <p class="mb-1">・<strong class="text-green-500">成功：</strong>すべての数字が左から昇順（小さい順）になっていればクリア！ 答えの数字が全開示されます。</p>
+                    <p>・<strong class="text-red-500">失敗：</strong>順序が崩れていた場合はミッション失敗。ライフが1減ります。<br>
+                        <span class="text-yellow-500">※レトロ版仕様：</span>失敗時は<strong class="text-yellow-400">「数字が隠されたまま（❓）」</strong>になります。誰の数字が前後したのかのネタバレを防群ぐため、もう一度相談し直して並び替えにチャレンジできます！
+                    </p>
+                </div>
+            </div>
+
+            <div class="mt-6 pt-4 border-t-2 border-black flex justify-end">
+                <button onclick="closeHowToModal()" class="bg-yellow-500 hover:bg-yellow-400 border-2 border-black text-black font-bold py-2 px-6 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none">
+                    了解した！
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 結果モーダル（ポップアップ） -->
+    <div id="resultModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div id="modalContent" class="bg-slate-900 border-4 border-green-500 p-8 max-w-lg w-full text-center retro-shadow transform scale-100 transition-transform">
+            <span id="resultIcon" class="text-6xl block mb-3">🎉</span>
+            <h3 id="resultTitle" class="text-2xl font-black mb-2 text-green-400">ミッション成功！</h3>
+            <p id="resultDesc" class="text-slate-300 text-xs mb-6">すべてのカードが完璧に小さい順に並びました！</p>
+
+            <!-- 結果表示 of ミニリスト -->
+            <div class="text-left mb-2 text-slate-400 text-xs">▼ 答え合わせリスト</div>
+            <div id="resultList" class="bg-black border-2 border-slate-800 p-4 mb-6 space-y-2 text-left max-h-48 overflow-y-auto">
+                <!-- 結果数値が並びます -->
+            </div>
+
+            <div class="flex gap-4 justify-center">
+                <button id="nextRoundBtn" class="bg-yellow-500 hover:bg-yellow-400 border-2 border-black text-black font-bold py-2 px-6 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none text-sm transition-all">
+                    メニューに戻る 🏠
+                </button>
+                <button id="closeModalBtn" onclick="closeResultModal()" class="bg-slate-800 hover:bg-slate-700 border-2 border-black text-slate-300 font-bold py-2 px-6 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none text-sm transition-all">
+                    閉じる
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- メッセージトースト -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-yellow-500 text-black font-bold py-3 px-5 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform translate-y-20 opacity-0 transition-all duration-300 z-50 text-xs">
+        メッセージ
+    </div>
+
+    <!-- 音源 (Web Audio API) -->
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(type) {
+            try {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'click') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.08);
+                } else if (type === 'success') {
+                    const now = audioCtx.currentTime;
+                    osc.type = 'square';
+                    // レトロなアルペジオ
+                    osc.frequency.setValueAtTime(261.63, now); // C4
+                    osc.frequency.setValueAtTime(329.63, now + 0.08); // E4
+                    osc.frequency.setValueAtTime(392.00, now + 0.16); // G4
+                    osc.frequency.setValueAtTime(523.25, now + 0.24); // C5
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+                    osc.start();
+                    osc.stop(now + 0.6);
+                } else if (type === 'fail') {
+                    const now = audioCtx.currentTime;
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(120, now);
+                    osc.frequency.linearRampToValueAtTime(60, now + 0.4);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.start();
+                    osc.stop(now + 0.4);
+                } else if (type === 'deal') {
+                    const now = audioCtx.currentTime;
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(150, now + 0.15);
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    osc.start();
+                    osc.stop(now + 0.15);
+                }
+            } catch (e) {
+                console.log('Audio error or blocked');
+            }
+        }
+    </script>
+
+    <!-- メインロジック -->
+    <script>
+        // ゲームステート
+        let playerCount = 4;
+        let players = []; 
+        let deck = [];
+        let life = 3;
+        let gameActive = false;
+
+        // 手札確認用ステート
+        let activeConfirmIndex = 0; // 現在確認プロセスにいるプレイヤーインデックス
+        let isReconfirmMode = false; // 再確認フロー中かどうかのフラグ
+
+        // DOM取得
+        const setupSection = document.getElementById('setupSection');
+        const revealSection = document.getElementById('revealSection');
+        const playArea = document.getElementById('playArea');
+        
+        const playerCountDisplay = document.getElementById('playerCountDisplay');
+        const playerNamesInputs = document.getElementById('playerNamesInputs');
+        const themeInput = document.getElementById('themeInput');
+        const currentThemeText = document.getElementById('currentThemeText');
+        
+        // 1人ずつ確認画面用要素
+        const revealWaitingScreen = document.getElementById('revealWaitingScreen');
+        const revealActiveScreen = document.getElementById('revealActiveScreen');
+        const revealCompleteScreen = document.getElementById('revealCompleteScreen');
+        const targetPlayerNameNotice = document.getElementById('targetPlayerNameNotice');
+        const secretNumberDisplay = document.getElementById('secretNumberDisplay');
+        const activePlayerHeader = document.getElementById('activePlayerHeader');
+        
+        // GM再確認モーダル用要素
+        const gmReconfirmBtn = document.getElementById('gmReconfirmBtn');
+        const gmReconfirmModal = document.getElementById('gmReconfirmModal');
+        const reconfirmPlayerList = document.getElementById('reconfirmPlayerList');
+        
+        // フィールド関連
+        const handsGrid = document.getElementById('handsGrid');
+        const fieldZone = document.getElementById('fieldZone');
+        const fieldEmptyMessage = document.getElementById('fieldEmptyMessage');
+        const heartsContainer = document.getElementById('hearts');
+        const resultModal = document.getElementById('resultModal');
+        const modalContent = document.getElementById('modalContent');
+        const resultIcon = document.getElementById('resultIcon');
+        const resultTitle = document.getElementById('resultTitle');
+        const resultDesc = document.getElementById('resultDesc');
+        const resultList = document.getElementById('resultList');
+        
+        // ボタン類
+        const startGameBtn = document.getElementById('startGameBtn');
+        const checkResultBtn = document.getElementById('checkResultBtn');
+        const nextRoundBtn = document.getElementById('nextRoundBtn');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const resetGameBtn = document.getElementById('resetGameBtn');
+        const howToPlayBtn = document.getElementById('howToPlayBtn');
+        const howToModal = document.getElementById('howToModal');
+        
+        // 確認プロセス内ボタン
+        const openSecretBtn = document.getElementById('openSecretBtn');
+        const nextPlayerBtn = document.getElementById('nextPlayerBtn');
+        const startPlayPhaseBtn = document.getElementById('startPlayPhaseBtn');
+
+        // 初期化
+        window.addEventListener('DOMContentLoaded', () => {
+            updatePlayerCountUI();
+            updateHeartsUI();
+            
+            startGameBtn.addEventListener('click', startConfirmPhase);
+            gmReconfirmBtn.addEventListener('click', openGmReconfirmModal);
+            
+            // 確認フェーズ内イベント
+            openSecretBtn.addEventListener('click', openSecretCard);
+            nextPlayerBtn.addEventListener('click', proceedToNextPlayer);
+            startPlayPhaseBtn.addEventListener('click', startPlayPhase);
+
+            checkResultBtn.addEventListener('click', checkResults);
+            nextRoundBtn.addEventListener('click', startNextRound);
+            resetGameBtn.addEventListener('click', resetAll);
+            
+            // 遊び方モーダルの開閉
+            howToPlayBtn.addEventListener('click', () => {
+                playSound('click');
+                howToModal.classList.remove('hidden');
+            });
+        });
+
+        function closeHowToModal() {
+            playSound('click');
+            howToModal.classList.add('hidden');
+        }
+
+        // 人数変更
+        function changePlayerCount(delta) {
+            playSound('click');
+            const newCount = playerCount + delta;
+            if (newCount >= 2 && newCount <= 8) {
+                playerCount = newCount;
+                updatePlayerCountUI();
+            }
+        }
+
+        // 人数UI更新
+        function updatePlayerCountUI() {
+            playerCountDisplay.textContent = playerCount;
+            
+            playerNamesInputs.innerHTML = '';
+            for (let i = 1; i <= playerCount; i++) {
+                const div = document.createElement('div');
+                div.className = 'flex items-center space-x-2';
+                div.innerHTML = `
+                    <span class="text-xs text-yellow-500 font-bold w-12">P${i}:</span>
+                    <input type="text" value="プレイヤー ${i}" data-player-id="${i}" 
+                        class="player-name-input bg-slate-900 border-2 border-black rounded-none px-2 py-0.5 text-xs text-slate-200 focus:outline-none focus:border-yellow-500 w-full">
+                `;
+                playerNamesInputs.appendChild(div);
+            }
+        }
+
+        function updateHeartsUI() {
+            heartsContainer.innerHTML = '❤️'.repeat(life) + '🖤'.repeat(Math.max(0, 3 - life));
+        }
+
+        // デッキ生成
+        function generateDeck() {
+            const arr = Array.from({ length: 100 }, (_, i) => i + 1);
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        // --- 人狼方式：カード配り ＆ 確認フェーズ開始 ---
+        function startConfirmPhase() {
+            playSound('deal');
+            deck = generateDeck();
+            players = [];
+
+            const nameInputs = document.querySelectorAll('.player-name-input');
+            nameInputs.forEach((input, index) => {
+                const name = input.value.trim() || `プレイヤー ${index + 1}`;
+                players.push({
+                    id: index,
+                    name: name,
+                    card: deck.pop(), // 1〜100の数字を配る
+                    submitted: false,
+                    declaration: "" 
+                });
+            });
+
+            // お題メモの設定
+            const theme = themeInput.value.trim() || '自由なお題（みんなで相談して決めてね！）';
+            currentThemeText.textContent = theme;
+
+            // 画面の遷移
+            setupSection.classList.add('hidden');
+            revealSection.classList.remove('hidden');
+            playArea.classList.add('hidden');
+
+            // 最初の確認待機画面を呼び出す
+            isReconfirmMode = false;
+            activeConfirmIndex = 0;
+            showRevealWaiting();
+        }
+
+        // 待機画面をセットアップする（他人は見ちゃダメ）
+        function showRevealWaiting() {
+            const player = players[activeConfirmIndex];
+            targetPlayerNameNotice.textContent = `${player.name}さん、数字の確認をお願いします。`;
+            
+            // 待機画面を表示し、確認中画面は隠す
+            revealWaitingScreen.classList.remove('hidden');
+            revealActiveScreen.classList.add('hidden');
+            revealCompleteScreen.classList.add('hidden');
+        }
+
+        // 秘密画面を開く
+        function openSecretCard() {
+            playSound('click');
+            const player = players[activeConfirmIndex];
+            
+            activePlayerHeader.textContent = `▼ ${player.name}さんのひみつの数字`;
+            secretNumberDisplay.textContent = player.card;
+
+            // 画面切り替え
+            revealWaitingScreen.classList.add('hidden');
+            revealActiveScreen.classList.remove('hidden');
+        }
+
+        // 確認完了して次へ (または元のプレイ画面へ戻る)
+        function proceedToNextPlayer() {
+            playSound('click');
+            
+            if (isReconfirmMode) {
+                // 再確認モードの場合、即座にプレイ画面に戻る
+                isReconfirmMode = false;
+                revealSection.classList.add('hidden');
+                playArea.classList.remove('hidden');
+                showToast(`${players[activeConfirmIndex].name}さんの数字の再確認を完了しました。`);
+                return;
+            }
+
+            // 通常の確認プロセス
+            const player = players[activeConfirmIndex];
+            player.declaration = "";
+
+            activeConfirmIndex++;
+
+            if (activeConfirmIndex < players.length) {
+                // まだ次の確認プレイヤーがいる場合、待機画面に戻る
+                showRevealWaiting();
+            } else {
+                // 全員確認完了画面へ
+                revealWaitingScreen.classList.add('hidden');
+                revealActiveScreen.classList.add('hidden');
+                revealCompleteScreen.classList.remove('hidden');
+                playSound('success');
+            }
+        }
+
+        // 相談・並び替えフェーズ開始（本当のゲーム開始！）
+        function startPlayPhase() {
+            playSound('click');
+            
+            // フィールド初期化
+            fieldZone.innerHTML = '';
+            fieldZone.appendChild(fieldEmptyMessage);
+            fieldEmptyMessage.classList.remove('hidden');
+
+            renderHands();
+
+            revealSection.classList.add('hidden');
+            playArea.classList.remove('hidden');
+            gameActive = true;
+
+            showToast('全員の確認完了！相談＆プレイスタート！');
+        }
+
+        // --- GM用再確認プレイヤー選択モーダル制御 ---
+        function openGmReconfirmModal() {
+            playSound('click');
+            reconfirmPlayerList.innerHTML = '';
+            
+            // プレイヤー全員（提出状態にかかわらず、忘れた人のため全員を選択可能に）
+            players.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full text-left bg-slate-950 hover:bg-slate-800 border-2 border-black text-slate-200 font-bold py-2.5 px-4 text-xs transition-all flex justify-between items-center active:translate-y-0.5';
+                btn.innerHTML = `
+                    <span>${p.name} ${p.submitted ? '<span class="text-[9px] bg-blue-900 border border-blue-500 text-blue-200 px-1 ml-2 font-normal">場に出し済</span>' : ''}</span>
+                    <span class="text-yellow-500 font-black">再確認 🔑</span>
+                `;
+                btn.onclick = () => {
+                    startReconfirmFlow(p.id);
+                };
+                reconfirmPlayerList.appendChild(btn);
+            });
+
+            gmReconfirmModal.classList.remove('hidden');
+        }
+
+        function closeGmReconfirmModal() {
+            playSound('click');
+            gmReconfirmModal.classList.add('hidden');
+        }
+
+        // 再確認フロー（目隠しプロセス）を開始する
+        function startReconfirmFlow(playerId) {
+            gmReconfirmModal.classList.add('hidden');
+            
+            // 相談画面を一時隠し、確認セクションを呼び出す
+            playArea.classList.add('hidden');
+            revealSection.classList.remove('hidden');
+            
+            isReconfirmMode = true;
+            activeConfirmIndex = playerId;
+            
+            showRevealWaiting();
+        }
+
+        // 手札（相談フェーズ用）レンダリング (のぞき見機能を廃止)
+        function renderHands() {
+            handsGrid.innerHTML = '';
+            
+            players.forEach(p => {
+                if (p.submitted) return;
+
+                const cardBox = document.createElement('div');
+                cardBox.className = 'bg-slate-800 border-4 border-black p-3 flex flex-col justify-between shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] min-h-[250px] relative';
+                
+                // プレイヤー名
+                const nameLabel = document.createElement('span');
+                nameLabel.className = 'text-xs font-bold text-yellow-400 text-center truncate w-full mb-1.5 pb-1 border-b border-dashed border-slate-700';
+                nameLabel.textContent = p.name;
+                cardBox.appendChild(nameLabel);
+
+                // 数字ののぞき見カード（完全に直接の見直しを不可にし、静的な「秘密」デザインに変更）
+                const cardInner = document.createElement('div');
+                cardInner.className = 'w-full h-20 bg-slate-950 border-2 border-slate-800 rounded-none flex flex-col items-center justify-center p-2 select-none mb-2';
+                
+                const cover = document.createElement('div');
+                cover.className = 'text-center';
+                cover.innerHTML = `
+                    <span class="text-2xl mb-1 block">🤫</span>
+                    <span class="text-[9px] text-slate-500 font-bold">数字はひみつ</span>
+                `;
+                cardInner.appendChild(cover);
+                cardBox.appendChild(cardInner);
+
+                // 言葉のタイピング入力欄
+                const textInputContainer = document.createElement('div');
+                textInputContainer.className = 'mb-2';
+                
+                const declarationInput = document.createElement('input');
+                declarationInput.type = 'text';
+                declarationInput.placeholder = '宣言（例：最強の武器）';
+                declarationInput.id = `decl-input-${p.id}`;
+                declarationInput.className = 'w-full bg-slate-950 border border-slate-700 text-slate-200 text-[11px] px-2 py-1 focus:outline-none focus:border-yellow-500 rounded-none placeholder-slate-600';
+                
+                textInputContainer.appendChild(declarationInput);
+                cardBox.appendChild(textInputContainer);
+
+                // 提出ボタン
+                const submitBtn = document.createElement('button');
+                submitBtn.className = 'bg-blue-700 hover:bg-blue-600 border-2 border-black text-white text-xs font-bold py-1.5 px-3 rounded-none w-full shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-0.5 active:shadow-none transition-all';
+                submitBtn.textContent = '場に出す 📤';
+                submitBtn.onclick = () => {
+                    const textVal = declarationInput.value.trim();
+                    submitCardToField(p.id, textVal);
+                };
+                cardBox.appendChild(submitBtn);
+
+                handsGrid.appendChild(cardBox);
+            });
+
+            const remaining = players.filter(p => !p.submitted).length;
+            if (remaining === 0) {
+                handsGrid.innerHTML = `
+                    <div class="col-span-full text-center py-6 text-yellow-500 text-xs border-2 border-dashed border-slate-800 bg-slate-950">
+                        全員がカードを提出しました！ 下のエリアで順番を相談しながら並び替えましょう。
+                    </div>
+                `;
+            }
+        }
+
+        // カードを場に出す
+        function submitCardToField(playerId, declarationText) {
+            playSound('click');
+            const player = players.find(p => p.id === playerId);
+            if (!player) return;
+
+            player.submitted = true;
+            player.declaration = declarationText || "（ノーコメント）"; // ここで宣言言葉を決定
+
+            fieldEmptyMessage.classList.add('hidden');
+
+            // フィールドカードを作成して追加
+            createFieldCard(player);
+            
+            // 手札リスト更新
+            renderHands();
+        }
+
+        // フィールド用カード要素の作成 (ドラッグ対応 ＆ 宣言表示)
+        function createFieldCard(player) {
+            const card = document.createElement('div');
+            card.className = 'field-card bg-slate-900 border-4 border-black p-3 flex flex-col items-center justify-between shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] cursor-grab active:cursor-grabbing w-32 h-44 select-none relative';
+            card.setAttribute('draggable', 'true');
+            card.setAttribute('data-player-id', player.id);
+            card.setAttribute('data-card-value', player.card);
+
+            // プレイヤー名
+            const ownerName = document.createElement('span');
+            ownerName.className = 'text-[10px] font-bold text-slate-400 truncate w-full text-center border-b border-slate-800 pb-1';
+            ownerName.textContent = player.name;
+
+            // 宣言の表示枠
+            const declBox = document.createElement('div');
+            declBox.className = 'w-full bg-black/40 border border-slate-800 p-1 mt-1 text-center flex-1 flex items-center justify-center';
+            
+            const declText = document.createElement('span');
+            declText.className = 'text-[11px] font-bold text-yellow-400 line-clamp-3 leading-tight break-all';
+            declText.textContent = player.declaration;
+            declBox.appendChild(declText);
+
+            // 数字部分（初期は完全に非公開 ❓）
+            const centerContent = document.createElement('div');
+            centerContent.className = 'w-full flex items-center justify-center my-1.5';
+            
+            const numDisplay = document.createElement('div');
+            numDisplay.className = 'card-value-secret text-xs text-yellow-500 font-bold bg-slate-950 px-3 py-1 border-2 border-black rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]';
+            numDisplay.innerHTML = '❓';
+            numDisplay.id = `field-val-display-${player.id}`;
+
+            centerContent.appendChild(numDisplay);
+
+            // 簡易位置移動アシストボタン（←、→）
+            const navBtnContainer = document.createElement('div');
+            navBtnContainer.className = 'flex justify-between w-full gap-2 mt-1';
+            
+            const leftBtn = document.createElement('button');
+            leftBtn.className = 'bg-slate-800 hover:bg-slate-700 active:bg-slate-900 px-2 py-1 border border-black text-xs text-slate-300 font-black flex-1 text-center shadow-sm';
+            leftBtn.innerHTML = '◀';
+            leftBtn.onclick = (e) => {
+                e.stopPropagation();
+                moveCardPosition(card, 'left');
+            };
+
+            const rightBtn = document.createElement('button');
+            rightBtn.className = 'bg-slate-800 hover:bg-slate-700 active:bg-slate-900 px-2 py-1 border border-black text-xs text-slate-300 font-black flex-1 text-center shadow-sm';
+            rightBtn.innerHTML = '▶';
+            rightBtn.onclick = (e) => {
+                e.stopPropagation();
+                moveCardPosition(card, 'right');
+            };
+
+            navBtnContainer.appendChild(leftBtn);
+            navBtnContainer.appendChild(rightBtn);
+
+            card.appendChild(ownerName);
+            card.appendChild(declBox);
+            card.appendChild(centerContent);
+            card.appendChild(navBtnContainer);
+
+            // ドラッグ＆ドロップイベント設定
+            setupDragAndDropEvents(card);
+
+            fieldZone.appendChild(card);
+        }
+
+        // 位置調整
+        function moveCardPosition(cardEl, direction) {
+            playSound('click');
+            const sibling = direction === 'left' ? cardEl.previousElementSibling : cardEl.nextElementSibling;
+            if (sibling && !sibling.classList.contains('text-slate-500')) {
+                if (direction === 'left') {
+                    fieldZone.insertBefore(cardEl, sibling);
+                } else {
+                    fieldZone.insertBefore(cardEl, sibling.nextSibling);
+                }
+            }
+        }
+
+        // ドラッグ＆ドロップ
+        let dragSrcEl = null;
+
+        function setupDragAndDropEvents(el) {
+            el.addEventListener('dragstart', handleDragStart, false);
+            el.addEventListener('dragenter', handleDragEnter, false);
+            el.addEventListener('dragover', handleDragOver, false);
+            el.addEventListener('dragleave', handleDragLeave, false);
+            el.addEventListener('drop', handleDrop, false);
+            el.addEventListener('dragend', handleDragEnd, false);
+        }
+
+        function handleDragStart(e) {
+            this.classList.add('dragging');
+            dragSrcEl = this;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleDragEnter(e) {
+            this.classList.add('border-yellow-400', 'scale-105');
+        }
+
+        function handleDragLeave(e) {
+            this.classList.remove('border-yellow-400', 'scale-105');
+        }
+
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation(); 
+            }
+
+            if (dragSrcEl !== this) {
+                const children = Array.from(fieldZone.children);
+                const srcIndex = children.indexOf(dragSrcEl);
+                const targetIndex = children.indexOf(this);
+
+                if (srcIndex < targetIndex) {
+                    fieldZone.insertBefore(dragSrcEl, this.nextSibling);
+                } else {
+                    fieldZone.insertBefore(dragSrcEl, this);
+                }
+                playSound('click');
+            }
+            return false;
+        }
+
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            const cards = document.querySelectorAll('.field-card');
+            cards.forEach(card => {
+                card.classList.remove('border-yellow-400', 'scale-105');
+            });
+        }
+
+        // 結果判定
+        function checkResults() {
+            const fieldCards = document.querySelectorAll('.field-card');
+            
+            if (fieldCards.length === 0) {
+                showToast('場にカードを提出してください！');
+                return;
+            }
+
+            if (fieldCards.length < players.length) {
+                showToast('まだ全員の手札が提出されていません！');
+                return;
+            }
+
+            const finalSequence = [];
+            fieldCards.forEach(card => {
+                const playerId = parseInt(card.getAttribute('data-player-id'));
+                const val = parseInt(card.getAttribute('data-card-value'));
+                const player = players.find(p => p.id === playerId);
+                finalSequence.push({
+                    id: player.id,
+                    name: player.name,
+                    value: val,
+                    declaration: player.declaration
+                });
+            });
+
+            // 小さい順になっているか検証
+            let isSuccessful = true;
+            for (let i = 0; i < finalSequence.length - 1; i++) {
+                if (finalSequence[i].value > finalSequence[i + 1].value) {
+                    isSuccessful = false;
+                    break;
+                }
+            }
+
+            // 結果モーダルの構築
+            resultList.innerHTML = '';
+            
+            if (isSuccessful) {
+                playSound('success');
+                resultIcon.textContent = '👑';
+                resultTitle.textContent = 'ミッション成功！';
+                resultTitle.className = 'text-3xl font-black mb-2 text-green-400 [text-shadow:2px_2px_0px_#000]';
+                resultDesc.textContent = '見事に小さい順に並びました！ 完璧なテレパシーです！';
+                
+                // 成功の場合：大きい順（降順）に並べ替えて表示する
+                const descSequence = [...finalSequence].sort((a, b) => b.value - a.value);
+                
+                descSequence.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'flex justify-between items-center border-b border-slate-900 py-1.5';
+                    div.innerHTML = `
+                        <div class="flex flex-col">
+                            <span class="text-xs text-slate-300 font-bold">${item.name}</span>
+                            <span class="text-[10px] text-yellow-500">💬 「${item.declaration}」</span>
+                        </div>
+                        <span class="text-xl font-black text-yellow-400 bg-slate-950 px-3 py-1 border-2 border-black">${item.value}</span>
+                    `;
+                    resultList.appendChild(div);
+                });
+
+                // フィールド上のカードの数字表示もオープンにする（左から配置された順でオープン）
+                finalSequence.forEach(item => {
+                    const el = document.getElementById(`field-val-display-${item.id}`);
+                    if (el) {
+                        el.textContent = item.value;
+                        el.classList.remove('text-yellow-500');
+                        el.classList.add('text-green-400', 'border-green-500');
+                    }
+                });
+
+                // ボタン制御：成功時は「メニューに戻る」のみを表示し、「閉じる」を非表示にする
+                nextRoundBtn.classList.remove('hidden');
+                closeModalBtn.classList.add('hidden');
+
+                modalContent.className = 'bg-slate-900 border-4 border-green-500 p-8 max-w-lg w-full text-center retro-shadow transform scale-100 transition-transform duration-300';
+
+            } else {
+                playSound('fail');
+                life--;
+                updateHeartsUI();
+
+                resultIcon.textContent = '💥';
+                resultTitle.textContent = 'ミッション失敗...';
+                resultTitle.className = 'text-3xl font-black mb-2 text-red-500 [text-shadow:2px_2px_0px_#000]';
+                
+                let descText = '並び順に間違いがありました！';
+                if (life <= 0) {
+                    descText += ' ライフがゼロになりました。ゲームオーバー！ すべての数字を開示して大きい順に表示します。';
+                } else {
+                    descText += ` ライフが1減りました。（残りLIFE: ${life}）`;
+                }
+                
+                if (life > 0) {
+                    descText += ' 【ネタバレ防止仕様：数字は非公開です】もう一度相談し直して、カードを並び替えることができます。';
+                }
+                resultDesc.textContent = descText;
+
+                if (life <= 0) {
+                    // 3回失敗（ライフ0）の場合：数字を表示し、大きい順（降順）に並べて表示
+                    const descSequence = [...finalSequence].sort((a, b) => b.value - a.value);
+                    
+                    descSequence.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = 'flex justify-between items-center border-b border-slate-900 py-1.5';
+                        div.innerHTML = `
+                            <div class="flex flex-col">
+                                <span class="text-xs text-slate-300 font-bold">${item.name}</span>
+                                <span class="text-[10px] text-yellow-500">💬 「${item.declaration}」</span>
+                            </div>
+                            <span class="text-xl font-black text-yellow-400 bg-slate-950 px-3 py-1 border-2 border-black">${item.value}</span>
+                        `;
+                        resultList.appendChild(div);
+                    });
+
+                    // フィールド上のカード of 数字も公開する
+                    finalSequence.forEach(item => {
+                        const el = document.getElementById(`field-val-display-${item.id}`);
+                        if (el) {
+                            el.textContent = item.value;
+                            el.classList.remove('text-yellow-500');
+                            el.classList.add('text-red-400', 'border-red-500');
+                        }
+                    });
+
+                    // ボタン制御：3回失敗時は「メニューに戻る」のみを表示し「閉じる」は非表示
+                    nextRoundBtn.classList.remove('hidden');
+                    closeModalBtn.classList.add('hidden');
+
+                } else {
+                    // 1回または2回失敗の場合：数字は非公開（❓のまま）、ボタンは「閉じる」のみで「メニューに戻る」は非表示
+                    finalSequence.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = 'flex justify-between items-center border-b border-slate-900 py-1.5';
+                        div.innerHTML = `
+                            <div class="flex flex-col">
+                                <span class="text-xs text-slate-300 font-bold">${item.name}</span>
+                                <span class="text-[10px] text-yellow-500">💬 「${item.declaration}」</span>
+                            </div>
+                            <span class="text-base font-black text-slate-600 bg-slate-950 px-3 py-1 border-2 border-black">❓ (ひみつ)</span>
+                        `;
+                        resultList.appendChild(div);
+                    });
+
+                    // ボタン制御：メニューに戻るを隠し、閉じるのみを表示
+                    nextRoundBtn.classList.add('hidden');
+                    closeModalBtn.classList.remove('hidden');
+                }
+
+                modalContent.className = 'bg-slate-900 border-4 border-red-500 p-8 max-w-lg w-full text-center retro-shadow transform scale-100 transition-transform duration-300';
+            }
+
+            resultModal.classList.remove('hidden');
+        }
+
+        // メニューに戻る際の処理
+        function startNextRound() {
+            closeResultModal();
+            
+            // セットアップ（メニュー）セクションを表示し、プレイ中の画面を隠す
+            setupSection.classList.remove('hidden');
+            playArea.classList.add('hidden');
+            revealSection.classList.add('hidden');
+            
+            // 成功・失敗（ゲームオーバー）に関わらず、ライフ（残機）を3（満タン）にリセットして初期化する
+            life = 3;
+            updateHeartsUI();
+            showToast('ゲームがリセットされ、メニュー画面に戻りました。');
+        }
+
+        // 完全リセット
+        function resetAll() {
+            playSound('click');
+            life = 3;
+            updateHeartsUI();
+            setupSection.classList.remove('hidden');
+            revealSection.classList.add('hidden');
+            playArea.classList.add('hidden');
+            closeResultModal();
+            showToast('リセットしました。人数とお題を設定してください。');
+        }
+
+        function closeResultModal() {
+            resultModal.classList.add('hidden');
+        }
+
+        // トーストメッセージ表示
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
